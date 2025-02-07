@@ -143,7 +143,7 @@ class TestProductRoutes(TestCase):
         # self.assertEqual(Decimal(new_product["price"]), test_product.price)
         # self.assertEqual(new_product["available"], test_product.available)
         # self.assertEqual(new_product["category"], test_product.category.name)
-    
+
     def test_get_product_not_found(self):
         """It should not Get a Product thats not found"""
         response = self.client.get(f"{BASE_URL}/0")
@@ -180,7 +180,7 @@ class TestProductRoutes(TestCase):
         # make sure they are deleted
         response = self.client.get(f"{BASE_URL}/{test_product.id}")
         self.assertEqual(response.status_code, status.HTTP_404_NOT_FOUND)
-    
+
     def test_update_product(self):
         """It should Update an existing Product"""
         # create a product to update
@@ -196,10 +196,6 @@ class TestProductRoutes(TestCase):
         updated_product = response.get_json()
         self.assertEqual(updated_product["description"], "unknown")
 
-    ######################################################################
-    # Utility functions
-    ######################################################################
-
     def get_product_count(self):
         """save the current number of products"""
         response = self.client.get(BASE_URL)
@@ -208,3 +204,58 @@ class TestProductRoutes(TestCase):
         # logging.debug("data = %s", data)
         return len(data)
 
+    def get_list_products(self):
+        """It should List all Products"""
+        self._create_products(3)  # Helper function to create test products
+        response = self.client.get(BASE_URL)
+        
+        # Verify response
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        
+        data = response.get_json()
+        self.assertIsInstance(data, list)  # Ensure response is a list
+        self.assertEqual(len(data), 3)  # Ensure the correct number of products are returned
+
+    def test_query_by_name(self):
+        """It should Query Products by name"""
+        products = self._create_products(5)
+        test_name = products[0].name
+        name_count = len([product for product in products if product.name == test_name])
+        response = self.client.get(
+            BASE_URL, query_string=f"name={quote_plus(test_name)}"
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(len(data), name_count)
+        # check the data just to be sure
+        for product in data:
+            self.assertEqual(product["name"], test_name)
+    
+    def test_get_product_list(self):
+        """It should Get a list of Products"""
+        self._create_products(5)
+        response = self.client.get(BASE_URL)
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(len(data), 5)
+
+    def test_query_by_category(self):
+        """It should Query Products by category"""
+        products = self._create_products(10)
+        category = products[0].category
+        found = [product for product in products if product.category == category]
+        found_count = len(found)
+        logging.debug("Found Products [%d] %s", found_count, found)
+
+        # test for available
+        response = self.client.get(BASE_URL, query_string=f"category={category.name}")
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        data = response.get_json()
+        self.assertEqual(len(data), found_count)
+        # check the data just to be sure
+        for product in data:
+            self.assertEqual(product["category"], category.name)
+
+    ######################################################################
+    # Utility functions
+    ######################################################################
